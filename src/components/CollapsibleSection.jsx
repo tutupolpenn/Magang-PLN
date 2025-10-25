@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
+import { useState } from "react";
 
 export default function CollapsibleSection({ title, color, children }) {
-  const [open, setOpen] = useState(false);
-  
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="border rounded-lg overflow-hidden shadow-sm bg-white mb-4">
+    <div className={`border rounded-lg mb-4 ${color}`}>
+      {/* Tombol judul section */}
       <button
-        onClick={() => setOpen(!open)}
-        className={`w-full text-left px-4 py-3 font-semibold flex justify-between items-center transition ${color} text-[#263238] hover:brightness-95`}
+        type="button" // 🔑 penting: biar tidak trigger submit
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex justify-between items-center p-4 font-semibold text-left"
       >
-        {title}
-        <span>{open ? "▲" : "▼"}</span>
+        <span>{title}</span>
+        <span>{isOpen ? "▲" : "▼"}</span>
       </button>
-      {open && <div className="p-4 grid gap-4 bg-gray-50">{children}</div>}
+
+      {/* Konten collapsible */}
+      {isOpen && (
+        <div className="p-4 border-t">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

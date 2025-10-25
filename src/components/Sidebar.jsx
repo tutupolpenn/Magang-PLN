@@ -1,6 +1,7 @@
 // src/components/Sidebar.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2"; // ✅ Import SweetAlert2
 import plnLogo from "../assets/plnLogo.png";
 import {
   HiOutlineHome,
@@ -14,6 +15,39 @@ import {
 
 export default function Sidebar({ close, active }) {
   const navigate = useNavigate();
+
+  // 👉 Fungsi logout
+  const handleLogout = () => {
+    Swal.fire({
+      title: "Konfirmasi Logout",
+      text: "Apakah Anda yakin ingin keluar?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Ya, Logout",
+      cancelButtonText: "Batal",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Hapus token
+        localStorage.removeItem("token");
+
+        // Tutup sidebar jika ada fungsi close
+        if (close) close();
+
+        // Alert sukses
+        Swal.fire({
+          title: "Berhasil Logout",
+          text: "Anda telah keluar dari aplikasi.",
+          icon: "success",
+          confirmButtonText: "OK",
+        }).then(() => {
+          // Redirect ke halaman utama setelah OK ditekan
+          navigate("/");
+        });
+      }
+    });
+  };
 
   return (
     <>
@@ -74,7 +108,7 @@ export default function Sidebar({ close, active }) {
       {/* Logout */}
       <div className="p-4">
         <button
-          onClick={close}
+          onClick={handleLogout}
           className="flex items-center justify-center gap-2 w-full bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
         >
           <HiOutlineArrowLeftOnRectangle className="text-xl" />

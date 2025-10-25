@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import Sidebar from "../components/Sidebar"; // Pastikan path ini benar
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import Sidebar from "../components/Sidebar"; 
 import { HiOutlineBars3 } from "react-icons/hi2";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -8,8 +9,9 @@ import {
 
 export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [laporanCount, setLaporanCount] = useState(0);
 
-  // Dummy data per hari
+  // Dummy data per hari untuk chart
   const dailyData = [
     { date: "15 Sep", masuk: 2, rusak: 1, perbaikan: 0, selesai: 1 },
     { date: "16 Sep", masuk: 3, rusak: 2, perbaikan: 1, selesai: 1 },
@@ -18,7 +20,7 @@ export default function Dashboard() {
     { date: "19 Sep", masuk: 5, rusak: 3, perbaikan: 1, selesai: 2 },
   ];
 
-  // Data trafo rusak
+  // Data trafo rusak (dummy, bisa ganti dengan API juga)
   const [trafoData, setTrafoData] = useState([
     { no: "1", gardu: "GI-01", penyulang: "P1", gtt: "GTT-001", alamat: "Jl. Mawar 1", status: "Rusak", color: "bg-red-400" },
     { no: "2", gardu: "GI-02", penyulang: "P2", gtt: "GTT-002", alamat: "Jl. Melati 2", status: "Ganti Trafo", color: "bg-green-400" },
@@ -30,6 +32,31 @@ export default function Dashboard() {
   const [editData, setEditData] = useState(null);
   const [editIndex, setEditIndex] = useState(null);
 
+  // Ambil jumlah laporan dari API
+  useEffect(() => {
+    const fetchLaporanCount = async () => {
+      try {
+        const token = localStorage.getItem("token"); // Ambil token login
+        const res = await axios.get("http://localhost:5000/api/laporan", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        // Sesuaikan struktur response API kamu
+        if (res.data.laporan) {
+          setLaporanCount(res.data.laporan.length);
+        } else if (Array.isArray(res.data)) {
+          setLaporanCount(res.data.length);
+        }
+      } catch (err) {
+        console.error("Gagal ambil laporan:", err);
+      }
+    };
+
+    fetchLaporanCount();
+  }, []);
+
   // Handler untuk buka modal edit
   const handleEdit = (row, idx) => {
     setEditData(row);
@@ -37,7 +64,7 @@ export default function Dashboard() {
     setEditModalOpen(true);
   };
 
-  // Handler untuk simpan perubahan
+  // Handler simpan edit
   const handleSaveEdit = (newData) => {
     const updated = [...trafoData];
     let color = "bg-red-400";
@@ -52,7 +79,6 @@ export default function Dashboard() {
     <div className="flex w-screen h-screen bg-gray-100 text-gray-800">
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden md:flex md:w-64 bg-gray-200 flex-col justify-between shadow-md">
-        {/* PERUBAIKAN: Mengganti active menjadi "dashboard" */}
         <Sidebar active="dashboard" />
       </aside>
 
@@ -60,19 +86,14 @@ export default function Dashboard() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 flex">
           <div className="w-64 bg-gray-200 flex flex-col justify-between shadow-md">
-            {/* PERUBAIKAN: Mengganti active menjadi "dashboard" */}
             <Sidebar active="dashboard" close={() => setSidebarOpen(false)} />
           </div>
-          <div
-            className="flex-1 bg-black/40"
-            onClick={() => setSidebarOpen(false)}
-          ></div>
+          <div className="flex-1 bg-black/40" onClick={() => setSidebarOpen(false)}></div>
         </div>
       )}
 
       {/* MAIN CONTENT */}
       <main className="flex-1 p-4 md:p-6 space-y-6 overflow-auto">
-        {/* PERUBAIKAN: Struktur header disatukan agar lebih rapi dan konsisten */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl md:text-2xl font-bold">Dashboard</h2>
           <button
@@ -85,13 +106,13 @@ export default function Dashboard() {
 
         {/* Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card title="Total Laporan Masuk" value="15" color="bg-blue-500" />
-          <Card title="Total Kerusakan" value="15" color="bg-red-400" />
+          <Card title="Total Laporan Masuk" value={laporanCount} color="bg-blue-500" />
+          <Card title="Total Kerusakan" value={laporanCount} color="bg-red-400" />
           <Card title="Total Perbaikan" value="10" color="bg-yellow-400" />
           <Card title="Total Selesai" value="5" color="bg-green-400" />
         </div>
 
-        {/* Charts per hari */}
+        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <p className="text-center text-sm text-gray-500 mb-2">
@@ -149,11 +170,7 @@ export default function Dashboard() {
             </thead>
             <tbody>
               {trafoData.map((row, idx) => (
-                <Row
-                  key={row.no}
-                  {...row}
-                  onEdit={() => handleEdit(row, idx)}
-                />
+                <Row key={row.no} {...row} onEdit={() => handleEdit(row, idx)} />
               ))}
             </tbody>
           </table>
@@ -172,7 +189,6 @@ export default function Dashboard() {
   );
 }
 
-// ... (Komponen Card, Row, dan EditModal tetap sama, tidak perlu diubah) ...
 /* ===== Sub Components ===== */
 function Card({ title, value, color }) {
   return (
@@ -203,7 +219,9 @@ function Row({ no, gardu, penyulang, gtt, alamat, status, color, onEdit }) {
         >
           Edit
         </button>
-        <button className="px-2 md:px-3 py-1 bg-gray-700 text-white rounded text-xs md:text-sm">Cetak</button>
+        <button className="px-2 md:px-3 py-1 bg-gray-700 text-white rounded text-xs md:text-sm">
+          Cetak
+        </button>
       </td>
     </tr>
   );

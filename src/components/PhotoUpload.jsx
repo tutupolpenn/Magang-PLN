@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 
-export default function PhotoUpload() {
+export default function PhotoUpload({ value = [], onChange }) {
   const [photos, setPhotos] = useState([
     { file: null, url: "", desc: "" },
     { file: null, url: "", desc: "" },
     { file: null, url: "", desc: "" },
   ]);
+
+  // Sync ke parent setiap kali photos berubah
+  useEffect(() => {
+    if (onChange) {
+      // kirim ke parent dalam bentuk array
+      onChange(photos);
+    }
+  }, [photos, onChange]);
 
   const handlePhotoChange = (index, file) => {
     if (!file) return;
@@ -23,7 +31,6 @@ export default function PhotoUpload() {
 
   const removePhoto = (index) => {
     const newPhotos = [...photos];
-    // Pastikan untuk mencabut URL objek untuk mencegah memory leak
     if (newPhotos[index].url) {
       URL.revokeObjectURL(newPhotos[index].url);
     }
@@ -36,7 +43,7 @@ export default function PhotoUpload() {
       {photos.map((photo, index) => (
         <div key={index} className="flex flex-col gap-2">
           <label className="block">
-            <span className="sr-only">Choose profile photo</span>
+            <span className="sr-only">Choose photo</span>
             <input
               type="file"
               accept="image/*"
@@ -44,7 +51,7 @@ export default function PhotoUpload() {
               className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
           </label>
-          
+
           {photo.url && (
             <div className="relative">
               <img
@@ -61,6 +68,7 @@ export default function PhotoUpload() {
               </button>
             </div>
           )}
+
           <input
             type="text"
             placeholder="Deskripsi foto"
