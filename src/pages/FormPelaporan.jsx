@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { HiOutlineBars3 } from "react-icons/hi2";
 import axios from "axios";
+import Swal from "sweetalert2";
 
 // Komponen terpisah
 import Sidebar from "../components/Sidebar";
@@ -22,10 +23,11 @@ export default function FormPelaporan() {
   // State utama form - dengan nilai default yang konsisten
   const [formData, setFormData] = useState({
     // Data Gardu
-    garduInduk: "",
-    penyulang: "",
-    nomorGTT: "",
-    alamat: "",
+    kodegi: "",
+    kodepenyul: "",
+    ulp: "",
+    kodegardu: "",
+    alamatgardu: "",
 
     // Data Trafo
     merk: "",
@@ -117,6 +119,26 @@ export default function FormPelaporan() {
     }));
   };
 
+const [trafoList, setTrafoList] = useState([]);
+
+useEffect(() => {
+  const fetchDataTrafo = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5000/api/data-trafo", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setTrafoList(response.data);
+    } catch (error) {
+      console.error("Gagal mengambil data trafo:", error);
+    }
+  };
+
+  fetchDataTrafo();
+}, []);
+
   // Ambil lokasi GPS otomatis saat component mount
   useEffect(() => {
     if (navigator.geolocation) {
@@ -163,10 +185,10 @@ export default function FormPelaporan() {
   // Validasi form sebelum submit
   const validateForm = () => {
     const requiredFields = {
-      garduInduk: "Gardu Induk",
-      penyulang: "Penyulang",
-      nomorGTT: "Nomor GTT",
-      alamat: "Alamat"
+      kodegi: "Gardu Induk",
+      kodepenyul: "Penyulang",
+      kodegardu: "Nomor GTT",
+      alamatgardu: "Alamat"
     };
 
     for (const [field, label] of Object.entries(requiredFields)) {
@@ -179,76 +201,101 @@ export default function FormPelaporan() {
     return true;
   };
 
-  // Submit handler
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  // Di FormPelaporan.jsx - UPDATE handleSubmit
 
-    // Validasi form
-    if (!validateForm()) {
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+
+  if (!validateForm()) {
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Anda belum login. Silakan login terlebih dahulu.");
+      setTimeout(() => navigate("/login"), 2000);
       return;
     }
 
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setError("Anda belum login. Silakan login terlebih dahulu.");
-        setTimeout(() => navigate("/login"), 2000);
-        return;
+    // ✅ Gunakan FormData untuk kirim file
+    const formDataToSend = new FormData();
+    
+    // Tambahkan semua field (kecuali file)
+    Object.keys(formData).forEach(key => {
+      if (!key.endsWith('_file')) {
+        // Convert boolean ke string untuk FormData
+        if (typeof formData[key] === 'boolean') {
+          formDataToSend.append(key, formData[key] ? '1' : '0');
+        } else if (formData[key] !== null && formData[key] !== '') {
+          formDataToSend.append(key, formData[key]);
+        }
       }
+    });
 
-      // Bersihkan data sebelum dikirim
-      const cleanedData = cleanDataForSubmit(formData);
-      
-      // Log untuk debugging (hapus di production)
-      console.log("DATA YANG AKAN DIKIRIM:", cleanedData);
-
-      const response = await axios.post(`${API_URL}/laporan`, cleanedData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      console.log("RESPONSE DARI SERVER:", response.data);
-
-      if (response.data.success) {
-        alert("Laporan berhasil dikirim!");
-        // Reset form atau redirect
-        navigate("/pelaporan");
-      } else {
-        setError(response.data.message || "Gagal mengirim laporan");
-      }
-    } catch (err) {
-      console.error("Error submit:", err);
-      console.error("Error detail:", err.response?.data);
-      
-      if (err.response?.status === 401) {
-        setError("Sesi berakhir, silakan login ulang.");
-        localStorage.removeItem("token");
-        setTimeout(() => navigate("/login"), 2000);
-      } else if (err.response?.status === 400) {
-        setError(err.response.data.message || "Data tidak valid. Periksa kembali isian Anda.");
-      } else if (err.response?.status === 500) {
-        setError("Terjadi kesalahan di server. Silakan coba lagi.");
-      } else {
-        setError(err.response?.data?.message || "Gagal mengirim laporan. Periksa koneksi internet Anda.");
-      }
-    } finally {
-      setLoading(false);
+    // Tambahkan file foto jika ada
+    if (formData.foto1_file) {
+      formDataToSend.append('foto1', formData.foto1_file);
     }
-  };
+    if (formData.foto2_file) {
+      formDataToSend.append('foto2', formData.foto2_file);
+    }
+    if (formData.foto3_file) {
+      formDataToSend.append('foto3', formData.foto3_file);
+    }
+
+    // Log untuk debugging
+    console.log("📤 Mengirim data...");
+
+    const response = await axios.post(`${API_URL}/laporan`, formDataToSend, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log("✅ RESPONSE:", response.data);
+
+    if (response.data.success) {
+      Swal.fire({
+        title: "Berhasil!",
+        text: "Data dan foto berhasil terkirim ✅",
+        icon: "success",
+        confirmButtonText: "Lanjut",
+      });
+      navigate("/pelaporan");
+    } else {
+      setError(response.data.message || "Gagal mengirim laporan");
+    }
+  } catch (err) {
+    console.error("❌ Error submit:", err);
+    
+    if (err.response?.status === 401) {
+      setError("Sesi berakhir, silakan login ulang.");
+      localStorage.removeItem("token");
+      setTimeout(() => navigate("/login"), 2000);
+    } else if (err.response?.status === 400) {
+      setError(err.response.data.message || "Data tidak valid.");
+    } else {
+      setError(err.response?.data?.message || "Gagal mengirim laporan.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Handler untuk reset form
   const handleReset = () => {
     if (window.confirm("Apakah Anda yakin ingin mengosongkan semua isian?")) {
       setFormData({
-        garduInduk: "",
-        penyulang: "",
-        nomorGTT: "",
-        alamat: "",
+        kodegi: "",
+        kodepenyul: "",
+        ulp: "",
+        kodegardu: "",
+        alamatgardu: "",
         merk: "",
         daya: "",
         nomorSerie: "",
@@ -363,42 +410,95 @@ export default function FormPelaporan() {
         <form onSubmit={handleSubmit} className="space-y-4">
           
           {/* DATA GARDU */}
-          <Section title="DATA GARDU" color="bg-blue-50" open>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField
-                label="Gardu Induk *"
-                name="garduInduk"
-                value={formData.garduInduk}
-                onChange={handleInputChange}
-                required
-                placeholder="Contoh: GI Kediri"
-              />
-              <InputField
-                label="Penyulang *"
-                name="penyulang"
-                value={formData.penyulang}
-                onChange={handleInputChange}
-                required
-                placeholder="Contoh: Penyulang Brawijaya"
-              />
-              <InputField
-                label="Nomor GTT *"
-                name="nomorGTT"
-                value={formData.nomorGTT}
-                onChange={handleInputChange}
-                required
-                placeholder="Contoh: GTT-001"
-              />
-              <InputField
-                label="Alamat *"
-                name="alamat"
-                value={formData.alamat}
-                onChange={handleInputChange}
-                required
-                placeholder="Alamat lengkap lokasi gardu"
-              />
-            </div>
-          </Section>
+  <Section title="DATA TRAFO" color="bg-blue-50" open>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {/* Dropdown Pilih Kode Trafo */}
+    <div>
+      <label className="block font-medium mb-1">No GTT *</label>
+      <select
+        name="kodegardu"
+        value={formData.kodegardu}
+        onChange={(e) => {
+          const selectedKode = e.target.value;
+          setFormData((prev) => ({ ...prev, kodegardu: selectedKode }));
+
+          const selectedTrafo = trafoList.find(
+            (t) => t.kodegardu === selectedKode
+          );
+
+          if (selectedTrafo) {
+            setFormData((prev) => ({
+              ...prev,
+              kodegardu: selectedTrafo.kodegardu,
+              ulp: selectedTrafo.ulp || "",
+              kodegi: selectedTrafo.kodegi || "",
+              kodepenyul: selectedTrafo.kodepenyul || "",
+              alamatgardu: selectedTrafo.alamatgardu || "",
+            }));
+          } else {
+            // Reset jika tidak ada trafo terpilih
+            setFormData((prev) => ({
+              ...prev,
+              kodegi: "",
+              ulp: "",
+              kodepenyul: "",
+              alamatgardu: "",
+            }));
+          }
+        }}
+        required
+        className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">-- Pilih No GTT --</option>
+        {trafoList.map((trafo) => (
+          <option key={trafo.kodegardu} value={trafo.kodegardu}>
+            {trafo.kodegardu}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Field otomatis terisi tapi editable */}
+    <InputField
+      label="Gardu Induk"
+      name="kodegi"
+      value={formData.kodegi || ""}
+      readOnly
+    />
+    <InputField
+      label="ULP"
+      name="ulp"
+      value={formData.ulp || ""}
+      readOnly
+    />
+    <InputField
+      label="Penyulang"
+      name="kodepenyul"
+      value={formData.kodepenyul || ""}
+      readOnly
+    />
+
+    {/* Alamat — bisa otomatis dan juga diketik manual */}
+    <div>
+      <label className="block font-medium mb-1">Alamat Gardu</label>
+      <input
+        type="text"
+        name="alamatgardu"
+        value={formData.alamatgardu || ""}
+        onChange={(e) =>
+          setFormData((prev) => ({
+            ...prev,
+            alamatgardu: e.target.value,
+          }))
+        }
+        placeholder="Tulis alamat gardu di sini..."
+        className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+  </div>
+</Section>
+
+
 
           {/* I. DATA GARDU TRAFO TIANG */}
           <CollapsibleSection title="I. DATA GARDU TRAFO TIANG" color="bg-green-50">
@@ -422,7 +522,7 @@ export default function FormPelaporan() {
                 <InputField label="Hubungan Belitan" name="hubunganBelitan" value={formData.hubunganBelitan} onChange={handleInputChange} placeholder="Contoh: Dyn5" />
                 <InputField label="Trafo Ek." name="trafoEk" value={formData.trafoEk} onChange={handleInputChange} placeholder="Trafo eksisting" />
                 <InputField label="Nama Bengkel" name="namaBengkel" value={formData.namaBengkel} onChange={handleInputChange} placeholder="Bengkel perbaikan" />
-                <InputField label="Tanggal Operasi" name="tanggalOperasi" type="date" value={formData.tanggalOperasi} onChange={handleInputChange} />
+                <InputField label="Tanggal Operasi" name="tanggalOperasi" type="datetime-local" value={formData.tanggalOperasi} onChange={handleInputChange} />
                 <InputField label="Plat Pemeriksaan Minyak" name="platPemeriksaanMinyak" value={formData.platPemeriksaanMinyak} onChange={handleInputChange} placeholder="Nomor plat" />
               </div>
             </div>
@@ -433,7 +533,7 @@ export default function FormPelaporan() {
             <InputField 
               label="Tanggal Kerusakan" 
               name="tanggalKerusakan" 
-              type="date" 
+              type="datetime-local" 
               value={formData.tanggalKerusakan} 
               onChange={handleInputChange} 
             />
@@ -461,7 +561,7 @@ export default function FormPelaporan() {
           </CollapsibleSection>
 
           {/* III. PENGUKURAN PENAHANAN */}
-          <CollapsibleSection title="III. PENGUKURAN PENAHANAN" color="bg-yellow-50">
+          <CollapsibleSection title="III. PENGUKURAN PERTANAHAN" color="bg-yellow-50">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField 
                 label="Titik Netral (Ohm)" 

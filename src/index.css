@@ -1,13 +1,22 @@
+
+/* =========================
+   TAILWIND IMPORT
+========================= */
 @import "tailwindcss";
 
+
+
+/* =========================
+   BASE STYLE
+========================= */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #213547;
+  background-color: #ffffff;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,26 +24,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #f3f4f6;
+  color: #1f2937;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+a {
+  font-weight: 500;
+  color: #2563eb;
+  text-decoration: none;
+}
+a:hover {
+  color: #1d4ed8;
 }
 
 button {
@@ -45,25 +50,95 @@ button {
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.2s ease;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #2563eb;
 }
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
+/* =========================
+   COLOR SCHEME OVERRIDES
+========================= */
+@media (prefers-color-scheme: dark) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: rgba(255, 255, 255, 0.87);
+    background-color: #242424;
+  }
+  body {
+    background-color: #242424;
+    color: #f3f4f6;
   }
   a:hover {
-    color: #747bff;
+    color: #93c5fd;
   }
   button {
-    background-color: #f9f9f9;
+    background-color: #333;
+    color: white;
   }
+}
+
+/* =========================
+   PRINT & PDF STYLING
+========================= */
+@media print {
+  /* Nonaktifkan semua animasi, sidebar, tombol */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  aside,
+  nav,
+  button,
+  .print-hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: #000 !important;
+  }
+
+  /* Pastikan dokumen muat ukuran A4 */
+  .print-page {
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 auto !important;
+    padding: 10mm !important;
+    background: white !important;
+    box-shadow: none !important;
+  }
+
+  /* Warna dan latar belakang fix */
+  .text-gray-700 { color: #374151 !important; }
+  .text-gray-500 { color: #6B7280 !important; }
+  .bg-gray-100 { background-color: #F3F4F6 !important; }
+  .bg-gray-200 { background-color: #E5E7EB !important; }
+  .bg-blue-600 { background-color: #2563EB !important; color: white !important; }
+  .bg-blue-700 { background-color: #1D4ED8 !important; color: white !important; }
+
+  /* Hindari warna aneh akibat OKLCH */
+  * {
+    color-scheme: light !important;
+  }
+
+  /* Area print khusus jika kamu gunakan #printArea */
+  #printArea * {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+}
+
+/* =========================
+   FIX html2canvas - Hindari warna OKLCH Tailwind
+========================= */
+* {
+  color-scheme: light !important;
 }

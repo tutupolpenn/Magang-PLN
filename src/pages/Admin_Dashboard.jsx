@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import Sidebar from "../components/Sidebar";
+import SidebarAdmin from "../components/SidebarAdmin";
 import {
   HiOutlineBars3,
   HiOutlinePencil,
@@ -18,7 +18,7 @@ import {
   Bar,
 } from "recharts";
 
-export default function Dashboard() {
+export default function DashboardAdmin() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -261,14 +261,14 @@ export default function Dashboard() {
     <div className="flex w-screen h-screen bg-gray-100 text-gray-800">
       {/* SIDEBAR */}
       <aside className="hidden md:flex md:w-64 bg-gray-200 flex-col justify-between shadow-md">
-        <Sidebar active="dashboard" />
+        <SidebarAdmin active="dashboard" />
       </aside>
 
       {/* MOBILE SIDEBAR */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 flex">
           <div className="w-64 bg-gray-200 flex flex-col justify-between shadow-md">
-            <Sidebar active="dashboard" close={() => setSidebarOpen(false)} />
+            <SidebarAdmin active="dashboard" close={() => setSidebarOpen(false)} />
           </div>
           <div
             className="flex-1 bg-black/40"

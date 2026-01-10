@@ -7,12 +7,14 @@ import {
   HiOutlineHome,
   HiOutlineDocumentText,
   HiOutlineWrench,
-  HiMagnifyingGlass,
+  HiOutlineCog6Tooth,
   HiOutlineArrowLeftOnRectangle,
   HiOutlineSignal,
+  HiOutlineUserGroup,
+  HiOutlineCube,
 } from "react-icons/hi2";
 
-export default function Sidebar({ close, active }) {
+export default function SidebarAdmin({ close, active }) {
   const navigate = useNavigate();
 
   // 👉 Fungsi logout
@@ -69,38 +71,45 @@ export default function Sidebar({ close, active }) {
             icon={<HiOutlineHome />}
             label="Dashboard"
             active={active === "dashboard"}
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/dashboard-admin")}
           />
-          <MenuButton
+           {/*<MenuButton
             icon={<HiOutlineDocumentText />}
             label="Pelaporan Kerusakan"
             active={active === "pelaporan"}
-            onClick={() => navigate("/pelaporan")}
-          />
-          <MenuButton
-            icon={<HiMagnifyingGlass />}
-            label="Investigasi"
-            active={active === "investigasi"}
-            onClick={() => navigate("/investigasi")}
+            onClick={() => navigate("/pelaporan-admin")}
           />
           <MenuButton
             icon={<HiOutlineWrench />}
             label="Perbaikan Trafo"
             active={active === "perbaikan"}
-            onClick={() => navigate("/perbaikan")}
+            onClick={() => navigate("/perbaikan-admin")}
           />
           <MenuButton
             icon={<HiOutlineSignal />}
             label="Pengoperasian Jaringan"
             active={active === "pengoperasian"}
-            onClick={() => navigate("/pengoperasian-jaringan")}
+            onClick={() => navigate("/pengoperasian-jaringan-admin")}
           />
-          {/*<MenuButton
+         <MenuButton
             icon={<HiOutlineCog6Tooth />}
             label="Pemeriksaan Jaringan"
             active={active === "pemeriksaan"}
-            onClick={() => navigate("/pemeriksaan-jaringan")}
+            onClick={() => navigate("/pemeriksaan-jaringan-admin")}
           />*/}
+        {/* 🔧 Menu baru: Manajemen Trafo */}
+          <MenuButton
+            icon={<HiOutlineCube />}
+            label="Manajemen Trafo"
+            active={active === "trafo"}
+            onClick={() => navigate("/manajemen-trafo")}
+          />
+          <MenuButton
+            icon={<HiOutlineUserGroup />}
+            label="Manajemen User"
+            active={active === "manajemen"}
+            onClick={() => navigate("/manajemen-user-admin")}
+          />
         </nav>
       </div>
 

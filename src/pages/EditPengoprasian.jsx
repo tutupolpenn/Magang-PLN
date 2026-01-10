@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { HiOutlineBars3, HiOutlinePlus, HiOutlineTrash, HiXMark, HiChevronDown, HiChevronUp } from "react-icons/hi2";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -51,66 +51,46 @@ const InputWithUnit = ({ label, name, value, onChange, unit, placeholder }) => (
         placeholder={placeholder}
         className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
       />
-      {unit && <span className="ml-2 text-gray-600 font-semibold text-sm whitespace-nowrap">{unit}</span>}
+      {unit && <span className="ml-2 text-gray-600 font-semibold">{unit}</span>}
     </div>
   </div>
 );
 
-// FIXED: SUTR Column Component
-const SutrColumn = ({ title, lineNumber, formData, onChange }) => {
-  const resistanceFields = [
-    { field: 'RN', label: 'R-N' },
-    { field: 'SN', label: 'S-N' },
-    { field: 'TN', label: 'T-N' },
-    { field: 'RS', label: 'R-S' },
-    { field: 'RT', label: 'R-T' },
-    { field: 'ST', label: 'S-T' },
-    { field: 'NBody', label: 'N-BODY' }
-  ];
+// SUTR Column Component
+const SutrColumn = ({ title, jurusanNum, formData, onChange }) => {
+  const resistanceFields = ['RN', 'SN', 'TN', 'RS', 'RT', 'ST', 'NBody'];
 
   return (
     <div className="space-y-3 p-4 border border-gray-200 rounded-lg bg-white shadow-sm">
-      <h3 className="text-sm font-bold text-center mb-3 text-gray-800">
-        {title}
-      </h3>
-      
       <InputField
-        label="Jenis Conductor"
-        name={`sutrJenisConductor${lineNumber}`}
-        value={formData[`sutrJenisConductor${lineNumber}`]}
+        label={title}
+        name={`sutrJenisConductor${jurusanNum}`}
+        value={formData[`sutrJenisConductor${jurusanNum}`]}
         onChange={onChange}
-        placeholder="Contoh: AAAC-S"
       />
-      
       <InputWithUnit
         label="Ukuran"
-        name={`sutrUkuran${lineNumber}`}
-        value={formData[`sutrUkuran${lineNumber}`]}
+        name={`sutrUkuran${jurusanNum}`}
+        value={formData[`sutrUkuran${jurusanNum}`]}
         onChange={onChange}
-        unit="mm²"
-        placeholder="Contoh: 35"
+        unit="mm2"
       />
-      
       <InputWithUnit
         label="Panjang"
-        name={`sutrPanjang${lineNumber}`}
-        value={formData[`sutrPanjang${lineNumber}`]}
+        name={`sutrPanjang${jurusanNum}`}
+        value={formData[`sutrPanjang${jurusanNum}`]}
         onChange={onChange}
-        unit="km"
-        placeholder="Contoh: 2.5"
+        unit="kms"
       />
-      
       <div className="pt-3 border-t border-gray-200 space-y-3">
-        <p className="text-xs font-semibold text-gray-600 mb-2">Test Tahanan Isolasi:</p>
-        {resistanceFields.map(({ field, label }) => (
+        {resistanceFields.map(field => (
           <InputWithUnit
             key={field}
-            label={label}
-            name={`sutr${field}${lineNumber}`}
-            value={formData[`sutr${field}${lineNumber}`]}
+            label={field.replace('NBody', 'N - BODY').replace(/(R|S|T)/g, '$&-').slice(0, 3)}
+            name={`sutr${field}${jurusanNum}`}
+            value={formData[`sutr${field}${jurusanNum}`]}
             onChange={onChange}
-            unit="MΩ"
-            placeholder="0"
+            unit="M Ohm"
           />
         ))}
       </div>
@@ -119,7 +99,7 @@ const SutrColumn = ({ title, lineNumber, formData, onChange }) => {
 };
 
 // Photo Upload Component
-const PhotoUploadComponent = ({ files, setFiles }) => {
+const PhotoUploadComponent = ({ files, setFiles, existingPhotos = [] }) => {
   const [previews, setPreviews] = useState([]);
 
   useEffect(() => {
@@ -128,7 +108,8 @@ const PhotoUploadComponent = ({ files, setFiles }) => {
         return {
           url: URL.createObjectURL(file),
           name: file.name,
-          size: file.size
+          size: file.size,
+          isNew: true
         };
       }
       return null;
@@ -168,7 +149,7 @@ const PhotoUploadComponent = ({ files, setFiles }) => {
       return true;
     });
 
-    if (files.length + validFiles.length > 5) {
+    if (files.length + validFiles.length + existingPhotos.length > 5) {
       Swal.fire({
         icon: 'warning',
         title: 'Terlalu Banyak File',
@@ -216,53 +197,94 @@ const PhotoUploadComponent = ({ files, setFiles }) => {
         </label>
       </div>
 
-      {previews.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {previews.map((preview, index) => (
-            <div key={index} className="relative border rounded-lg p-2 bg-white shadow-sm">
-              <button
-                type="button"
-                onClick={() => removeFile(index)}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10"
-              >
-                <HiXMark className="w-4 h-4" />
-              </button>
-              
-              {/\.(jpg|jpeg|png)$/i.test(preview.name) ? (
-                <img
-                  src={preview.url}
-                  alt={preview.name}
-                  className="w-full h-32 object-cover rounded"
-                />
-              ) : (
-                <div className="w-full h-32 flex items-center justify-center bg-gray-100 rounded">
-                  <div className="text-center">
-                    <div className="text-3xl mb-1">📄</div>
-                    <div className="text-xs text-gray-600 px-2 truncate">
-                      {preview.name.split('.').pop().toUpperCase()}
+      {/* Display existing photos */}
+      {existingPhotos.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Foto yang sudah ada:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {existingPhotos.map((photo, index) => (
+              <div key={`existing-${index}`} className="relative border rounded-lg p-2 bg-white shadow-sm">
+                <div className="absolute top-1 right-1 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                  Tersimpan
+                </div>
+                {/\.(jpg|jpeg|png)$/i.test(photo) ? (
+                  <img
+                    src={`http://localhost:5000/uploads/${photo}`}
+                    alt={photo}
+                    className="w-full h-32 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-full h-32 flex items-center justify-center bg-gray-100 rounded">
+                    <div className="text-center">
+                      <div className="text-3xl mb-1">📄</div>
+                      <div className="text-xs text-gray-600 px-2 truncate">
+                        {photo.split('.').pop().toUpperCase()}
+                      </div>
                     </div>
                   </div>
+                )}
+                <div className="mt-2 text-xs text-gray-600 truncate" title={photo}>
+                  {photo}
                 </div>
-              )}
-              
-              <div className="mt-2 text-xs text-gray-600 truncate" title={preview.name}>
-                {preview.name}
               </div>
-              <div className="text-xs text-gray-500">
-                {formatFileSize(preview.size)}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Display new photos */}
+      {previews.length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">File baru yang akan diupload:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {previews.map((preview, index) => (
+              <div key={index} className="relative border rounded-lg p-2 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 z-10"
+                >
+                  <HiXMark className="w-4 h-4" />
+                </button>
+                
+                {/\.(jpg|jpeg|png)$/i.test(preview.name) ? (
+                  <img
+                    src={preview.url}
+                    alt={preview.name}
+                    className="w-full h-32 object-cover rounded"
+                  />
+                ) : (
+                  <div className="w-full h-32 flex items-center justify-center bg-gray-100 rounded">
+                    <div className="text-center">
+                      <div className="text-3xl mb-1">📄</div>
+                      <div className="text-xs text-gray-600 px-2 truncate">
+                        {preview.name.split('.').pop().toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="mt-2 text-xs text-gray-600 truncate" title={preview.name}>
+                  {preview.name}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {formatFileSize(preview.size)}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-export default function FormPengoperasian() {
+export default function EditPengoperasian() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [existingPhotos, setExistingPhotos] = useState([]);
+  const { id } = useParams();
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -282,7 +304,7 @@ export default function FormPengoperasian() {
     penyulang: "",
     noGtt: "",
 
-    // Jaringan SUTR - FIXED: Tambahkan semua field dengan konsisten
+    // Jaringan SUTR
     sutrJenisLine1: "",
     sutrJenisConductor1: "", sutrUkuran1: "", sutrPanjang1: "",
     sutrRN1: "", sutrSN1: "", sutrTN1: "", sutrRS1: "", sutrRT1: "", sutrST1: "", sutrNBody1: "",
@@ -341,6 +363,110 @@ export default function FormPengoperasian() {
     pelaksanaPetugas: "",
   });
 
+  // Fetch data saat komponen dimount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Sesi Berakhir',
+            text: 'Silakan login kembali',
+            confirmButtonColor: '#3b82f6'
+          });
+          navigate('/login');
+          return;
+        }
+
+        const response = await axios.get(
+          `http://localhost:5000/api/test-jaringan/${id}`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
+
+        const data = response.data;
+
+        // Format tanggal untuk input datetime-local
+        if (data.tanggalTest) {
+          data.tanggalTest = new Date(data.tanggalTest).toISOString().slice(0, 16);
+        }
+        if (data.tanggalOperasi) {
+          data.tanggalOperasi = new Date(data.tanggalOperasi).toISOString().slice(0, 16);
+        }
+
+        // Mapping data SUTR dari nested object jika ada
+        if (data.sutr) {
+          data.sutrJenisConductor1 = data.sutr.jenisConductor || "";
+          data.sutrUkuran1 = data.sutr.ukuran || "";
+          data.sutrPanjang1 = data.sutr.panjang || "";
+          data.sutrRN1 = data.sutr.RN || "";
+          data.sutrSN1 = data.sutr.SN || "";
+          data.sutrTN1 = data.sutr.TN || "";
+          data.sutrRS1 = data.sutr.RS || "";
+          data.sutrRT1 = data.sutr.RT || "";
+          data.sutrST1 = data.sutr.ST || "";
+          data.sutrNBody1 = data.sutr.NBody || "";
+
+          data.sutrJenisConductor2 = data.sutr.jenisConductor2 || "";
+          data.sutrUkuran2 = data.sutr.ukuran2 || "";
+          data.sutrPanjang2 = data.sutr.panjang2 || "";
+          data.sutrRN2 = data.sutr.RN2 || "";
+          data.sutrSN2 = data.sutr.SN2 || "";
+          data.sutrTN2 = data.sutr.TN2 || "";
+          data.sutrRS2 = data.sutr.RS2 || "";
+          data.sutrRT2 = data.sutr.RT2 || "";
+          data.sutrST2 = data.sutr.ST2 || "";
+          data.sutrNBody2 = data.sutr.NBody2 || "";
+
+          data.sutrJenisConductor3 = data.sutr.jenisConductor3 || "";
+          data.sutrUkuran3 = data.sutr.ukuran3 || "";
+          data.sutrPanjang3 = data.sutr.panjang3 || "";
+          data.sutrRN3 = data.sutr.RN3 || "";
+          data.sutrSN3 = data.sutr.SN3 || "";
+          data.sutrTN3 = data.sutr.TN3 || "";
+          data.sutrRS3 = data.sutr.RS3 || "";
+          data.sutrRT3 = data.sutr.RT3 || "";
+          data.sutrST3 = data.sutr.ST3 || "";
+          data.sutrNBody3 = data.sutr.NBody3 || "";
+        }
+
+        // Handle petugasPLN array
+        if (!Array.isArray(data.petugasPLN)) {
+          data.petugasPLN = data.petugasPLN ? [data.petugasPLN] : [""];
+        }
+        if (data.petugasPLN.length === 0) {
+          data.petugasPLN = [""];
+        }
+
+        // Handle existing photos
+        if (data.lampiran && Array.isArray(data.lampiran)) {
+          setExistingPhotos(data.lampiran);
+        }
+
+        setFormData(data);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Gagal Memuat Data',
+          text: 'Terjadi kesalahan saat memuat data',
+          confirmButtonColor: '#ef4444'
+        });
+        
+        if (error.response && error.response.status === 401) {
+          setTimeout(() => {
+            localStorage.removeItem('token');
+            navigate('/login');
+          }, 2000);
+        }
+      }
+    };
+
+    fetchData();
+  }, [id, navigate]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
@@ -383,29 +509,9 @@ export default function FormPengoperasian() {
       return;
     }
 
-    // DEBUG: Log data SUTR sebelum dikirim
-    console.log('=== DEBUG SUTR DATA ===');
-    console.log('Line 1:', {
-      jenis: formData.sutrJenisConductor1,
-      ukuran: formData.sutrUkuran1,
-      panjang: formData.sutrPanjang1,
-      RN: formData.sutrRN1,
-      SN: formData.sutrSN1
-    });
-    console.log('Line 2:', {
-      jenis: formData.sutrJenisConductor2,
-      ukuran: formData.sutrUkuran2,
-      panjang: formData.sutrPanjang2
-    });
-    console.log('Line 3:', {
-      jenis: formData.sutrJenisConductor3,
-      ukuran: formData.sutrUkuran3,
-      panjang: formData.sutrPanjang3
-    });
-
     // Show loading alert
     Swal.fire({
-      title: 'Menyimpan Data...',
+      title: 'Menyimpan Perubahan...',
       text: 'Mohon tunggu sebentar',
       allowOutsideClick: false,
       allowEscapeKey: false,
@@ -420,21 +526,16 @@ export default function FormPengoperasian() {
       // Prepare FormData for multipart/form-data
       const submitData = new FormData();
 
-      // Append all form fields - PENTING: Pastikan semua field SUTR masuk
+      // Append all form fields
       Object.keys(formData).forEach(key => {
         if (key === 'petugasPLN') {
           submitData.append(key, JSON.stringify(formData[key]));
-        } else if (formData[key] !== null && formData[key] !== '') {
+        } else if (key !== 'lampiran' && formData[key] !== null && formData[key] !== '') {
           submitData.append(key, formData[key]);
-          
-          // DEBUG: Log field SUTR yang dikirim
-          if (key.startsWith('sutr')) {
-            console.log(`Sending ${key}: ${formData[key]}`);
-          }
         }
       });
 
-      // Append files
+      // Append new files only
       uploadedFiles.forEach((file) => {
         submitData.append('lampiran', file);
       });
@@ -454,8 +555,8 @@ export default function FormPengoperasian() {
       }
 
       // Send to backend
-      const response = await axios.post(
-        'http://localhost:5000/api/test-jaringan',
+      const response = await axios.put(
+        `http://localhost:5000/api/test-jaringan/${id}`,
         submitData,
         {
           headers: {
@@ -465,13 +566,12 @@ export default function FormPengoperasian() {
         }
       );
 
-      console.log('Server response:', response.data);
-
-      if (response.status === 201 || response.status === 200) {
+      if (response.status === 200) {
+        // Success alert with SweetAlert2
         Swal.fire({
           icon: 'success',
           title: 'Berhasil!',
-          text: 'Data Pengoperasian berhasil disimpan',
+          text: 'Data berhasil diperbarui',
           confirmButtonColor: '#10b981',
           confirmButtonText: 'OK'
         }).then((result) => {
@@ -482,10 +582,10 @@ export default function FormPengoperasian() {
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      console.error('Error details:', error.response?.data);
       
       if (error.response) {
-        const errorMsg = error.response.data.message || 'Gagal menyimpan data';
+        // Server responded with error
+        const errorMsg = error.response.data.message || 'Gagal memperbarui data';
         
         Swal.fire({
           icon: 'error',
@@ -495,12 +595,14 @@ export default function FormPengoperasian() {
         });
         
         if (error.response.status === 401) {
+          // Unauthorized - redirect to login
           setTimeout(() => {
             localStorage.removeItem('token');
             navigate('/login');
           }, 2000);
         }
       } else if (error.request) {
+        // Request made but no response
         Swal.fire({
           icon: 'error',
           title: 'Koneksi Gagal',
@@ -508,6 +610,7 @@ export default function FormPengoperasian() {
           confirmButtonColor: '#ef4444'
         });
       } else {
+        // Something else happened
         Swal.fire({
           icon: 'error',
           title: 'Terjadi Kesalahan',
@@ -537,7 +640,7 @@ export default function FormPengoperasian() {
       
       <main className="flex-1 p-4 md:p-6 overflow-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Pengoperasian Jaringan</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Edit Pengoperasian Jaringan</h1>
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded hover:bg-gray-200 md:hidden">
             <HiOutlineBars3 className="text-2xl" />
           </button>
@@ -564,67 +667,27 @@ export default function FormPengoperasian() {
               <InputField label="No. GTT" name="noGtt" value={formData.noGtt} onChange={handleInputChange} />
             </div>
           </Section>
-          
-          <Section title="Jaringan SUTR & Test Tahanan Isolasi" color="bg-gray-50" defaultOpen={true}>
-            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 mb-6">
-              <h3 className="text-base md:text-lg font-semibold text-gray-800">
-                Jaringan SUTR Test Tahanan Isolasi SUTR
-              </h3>
-              <div className="w-full md:w-1/3">
-                <InputField
-                  label="Nama Line 1"
-                  name="sutrJenisLine1"
-                  value={formData.sutrJenisLine1}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: LINE 1"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-              <SutrColumn 
-                title={formData.sutrJenisLine1 || "LINE 1"}
-                lineNumber={1}
-                formData={formData}
-                onChange={handleInputChange}
-              />
-              
-              <SutrColumn 
-                title="LINE 2"
-                lineNumber={2}
-                formData={formData}
-                onChange={handleInputChange}
-              />
-              
-              <SutrColumn 
-                title="LINE 3"
-                lineNumber={3}
-                formData={formData}
-                onChange={handleInputChange}
-              />
-            </div>
-          </Section>
 
-          <Section title="Jaringan SUTM & Test Tahanan Isolasi" color="bg-white" defaultOpen={true}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-6 mb-4">
+          <Section title="Jaringan SUTM test tahanan" color="bg-white" defaultOpen={true}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-6 mb-2">
               <h3 className="font-semibold text-gray-800 text-base md:text-lg">Jaringan SUTM</h3>
               <h3 className="font-semibold text-gray-800 text-base md:text-lg md:col-span-2">Test Tahanan Isolasi SUTM</h3>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
                 <InputField label="Jenis Conductor" name="sutmJenisConductor" value={formData.sutmJenisConductor} onChange={handleInputChange} />
-                <InputWithUnit label="Ukuran" name="sutmUkuran" value={formData.sutmUkuran} onChange={handleInputChange} unit="mm²" />
-                <InputWithUnit label="Panjang" name="sutmPanjang" value={formData.sutmPanjang} onChange={handleInputChange} unit="km" />
+                <InputWithUnit label="Ukuran" name="sutmUkuran" value={formData.sutmUkuran} onChange={handleInputChange} unit="mm2" />
+                <InputWithUnit label="Panjang" name="sutmPanjang" value={formData.sutmPanjang} onChange={handleInputChange} unit="kms" />
               </div>
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                <InputWithUnit label="R - G" name="sutmRG" value={formData.sutmRG} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="S - G" name="sutmSG" value={formData.sutmSG} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="T - G" name="sutmTG" value={formData.sutmTG} onChange={handleInputChange} unit="MΩ"/>
+                <InputWithUnit label="R - G" name="sutmRG" value={formData.sutmRG} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="S - G" name="sutmSG" value={formData.sutmSG} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="T - G" name="sutmTG" value={formData.sutmTG} onChange={handleInputChange} unit="M Ohm"/>
               </div>
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                <InputWithUnit label="R - S" name="sutmRS" value={formData.sutmRS} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="R - T" name="sutmRT" value={formData.sutmRT} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="S - T" name="sutmST" value={formData.sutmST} onChange={handleInputChange} unit="MΩ"/>
+                <InputWithUnit label="R - S" name="sutmRS" value={formData.sutmRS} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="R - T" name="sutmRT" value={formData.sutmRT} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="S - T" name="sutmST" value={formData.sutmST} onChange={handleInputChange} unit="M Ohm"/>
               </div>
             </div>
           </Section>
@@ -649,7 +712,7 @@ export default function FormPengoperasian() {
                 <InputWithUnit label="Teg. Sekunder" name="tegSekunder" value={formData.tegSekunder} onChange={handleInputChange} unit="V" />
                 <InputWithUnit label="Arus Nom TM" name="arusPrimer" value={formData.arusPrimer} onChange={handleInputChange} unit="A" />
                 <InputWithUnit label="Arus Nom TR" name="arusNom" value={formData.arusNom} onChange={handleInputChange} unit="A" />
-                <InputWithUnit label="Frekuensi" name="frekuensi" value={formData.frekuensi} onChange={handleInputChange} unit="Hz" />
+                <InputWithUnit label="Frekuensi" name="frekuensi" value={formData.frekuensi} onChange={handleInputChange} />
               </div>
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
                 <InputField label="Tahun Pembuatan" name="tahunPembuatan" value={formData.tahunPembuatan} onChange={handleInputChange} />
@@ -661,53 +724,53 @@ export default function FormPengoperasian() {
             </div>
           </Section>
 
-          <Section title="Tahanan Isolasi & Tegangan Rendah" color="bg-white" defaultOpen={true}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4">
+          <Section title="Tahanan isolasi & Tegangan Rendah" color="bg-white" defaultOpen={true}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-2">
               <h3 className="font-semibold text-gray-800 text-base md:text-lg">Tahanan Isolasi Transformator</h3>
               <h3 className="font-semibold text-gray-800 text-base md:text-lg">Tegangan Rendah</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                <InputWithUnit label="Primer - Body" name="tahananPrimerBody" value={formData.tahananPrimerBody} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="Sekunder - Body" name="tahananSekunderBody" value={formData.tahananSekunderBody} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="Primer - Primer" name="tahananPrimerPrimer" value={formData.tahananPrimerPrimer} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="Sekunder - Sekunder" name="tahananSekunderSekunder" value={formData.tahananSekunderSekunder} onChange={handleInputChange} unit="MΩ"/>
+                <InputWithUnit label="Primer - Body" name="tahananPrimerBody" value={formData.tahananPrimerBody} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="Sekunder - Body" name="tahananSekunderBody" value={formData.tahananSekunderBody} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="Primer - Primer" name="tahananPrimerPrimer" value={formData.tahananPrimerPrimer} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="Sekunder - Sekunder" name="tahananSekunderSekunder" value={formData.tahananSekunderSekunder} onChange={handleInputChange} unit="M Ohm"/>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                  <InputWithUnit label="R - N" name="teganganRN" value={formData.teganganRN} onChange={handleInputChange} unit="V"/>
-                  <InputWithUnit label="S - N" name="teganganSN" value={formData.teganganSN} onChange={handleInputChange} unit="V"/>
-                  <InputWithUnit label="T - N" name="teganganTN" value={formData.teganganTN} onChange={handleInputChange} unit="V"/>
+                  <InputWithUnit label="R - N" name="teganganRN" value={formData.teganganRN} onChange={handleInputChange} unit="M Ohm"/>
+                  <InputWithUnit label="S - N" name="teganganSN" value={formData.teganganSN} onChange={handleInputChange} unit="M Ohm"/>
+                  <InputWithUnit label="T - N" name="teganganTN" value={formData.teganganTN} onChange={handleInputChange} unit="M Ohm"/>
                 </div>
                 <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                  <InputWithUnit label="R - S" name="teganganRS" value={formData.teganganRS} onChange={handleInputChange} unit="V"/>
-                  <InputWithUnit label="R - T" name="teganganRT" value={formData.teganganRT} onChange={handleInputChange} unit="V"/>
-                  <InputWithUnit label="S - T" name="teganganST" value={formData.teganganST} onChange={handleInputChange} unit="V"/>
+                  <InputWithUnit label="R - S" name="teganganRS" value={formData.teganganRS} onChange={handleInputChange} unit="M Ohm"/>
+                  <InputWithUnit label="R - T" name="teganganRT" value={formData.teganganRT} onChange={handleInputChange} unit="M Ohm"/>
+                  <InputWithUnit label="S - T" name="teganganST" value={formData.teganganST} onChange={handleInputChange} unit="M Ohm"/>
                 </div>
               </div>
             </div>
           </Section>
         
-          <Section title="Arrester & Pentanahan" color="bg-white" defaultOpen={true}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-6 mb-4">
+          <Section title="Arrester & Pertanahan" color="bg-white" defaultOpen={true}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-6 mb-2">
               <h3 className="font-semibold text-gray-800 text-base md:text-lg">Arrester</h3>
               <h3 className="font-semibold text-gray-800 text-base md:text-lg md:col-span-2">Pentanahan</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                <InputWithUnit label="R - G" name="tahananArresterRG" value={formData.tahananArresterRG} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="S - G" name="tahananArresterSG" value={formData.tahananArresterSG} onChange={handleInputChange} unit="MΩ"/>
-                <InputWithUnit label="T - G" name="tahananArresterTG" value={formData.tahananArresterTG} onChange={handleInputChange} unit="MΩ"/>
+                <InputWithUnit label="R - G" name="tahananArresterRG" value={formData.tahananArresterRG} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="S - G" name="tahananArresterSG" value={formData.tahananArresterSG} onChange={handleInputChange} unit="M Ohm"/>
+                <InputWithUnit label="T - G" name="tahananArresterTG" value={formData.tahananArresterTG} onChange={handleInputChange} unit="M Ohm"/>
               </div>
               <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
-                  <InputWithUnit label="Netral" name="pentanahanNetral" value={formData.pentanahanNetral} onChange={handleInputChange} unit="Ω"/>
+                  <InputWithUnit label="Netral" name="pentanahanNetral" value={formData.pentanahanNetral} onChange={handleInputChange} unit="Ohm"/>
                   <InputWithUnit label="Arus Bocor" name="pentanahanArusBocorNetral" value={formData.pentanahanArusBocorNetral} onChange={handleInputChange} unit="mA"/>
-                  <InputWithUnit label="Arrester" name="pentanahanArrester" value={formData.pentanahanArrester} onChange={handleInputChange} unit="Ω"/>
+                  <InputWithUnit label="Arrester" name="pentanahanArrester" value={formData.pentanahanArrester} onChange={handleInputChange} unit="Ohm"/>
                 </div>
                 <div className="p-4 border border-gray-300 rounded-lg space-y-4 bg-white shadow-sm">
                   <InputWithUnit label="Arus Bocor" name="pentanahanArusBocorArrester" value={formData.pentanahanArusBocorArrester} onChange={handleInputChange} unit="mA"/>
-                  <InputWithUnit label="Body" name="pentanahanBody" value={formData.pentanahanBody} onChange={handleInputChange} unit="Ω"/>
+                  <InputWithUnit label="Body" name="pentanahanBody" value={formData.pentanahanBody} onChange={handleInputChange} unit="Ohm"/>
                 </div>
               </div>
             </div>
@@ -715,9 +778,9 @@ export default function FormPengoperasian() {
 
           <Section title="Hasil Pemeriksaan" color="bg-white" defaultOpen={true}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <InputWithUnit label="SUTM A3C" name="pemeriksaanSutm" value={formData.pemeriksaanSutm} onChange={handleInputChange} unit="km" />
-              <InputWithUnit label="SUTR Bund. Konduktor" name="pemeriksaanSutr" value={formData.pemeriksaanSutr} onChange={handleInputChange} unit="km" />
-              <InputWithUnit label="Trafo Distribusi 20 KV 3 Ph" name="pemeriksaanTrafo" value={formData.pemeriksaanTrafo} onChange={handleInputChange} unit="kVA/Bh" />
+              <InputWithUnit label="SUTM A3C" name="pemeriksaanSutm" value={formData.pemeriksaanSutm} onChange={handleInputChange} unit="Kms" />
+              <InputWithUnit label="SUTR Bund. Konduktor" name="pemeriksaanSutr" value={formData.pemeriksaanSutr} onChange={handleInputChange} unit="Kms" />
+              <InputWithUnit label="Trafo Distribusi 20 KV 3 Ph" name="pemeriksaanTrafo" value={formData.pemeriksaanTrafo} onChange={handleInputChange} unit="kVA / Bh" />
             </div>
           </Section>
 
@@ -730,18 +793,17 @@ export default function FormPengoperasian() {
                 rows="4"
                 value={formData.catatan}
                 onChange={handleInputChange}
-                placeholder="Tuliskan catatan tambahan jika ada..."
                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
               ></textarea>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Petugas PLN</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">Petugas PLN</label>
                 {formData.petugasPLN.map((petugas, index) => (
                   <div key={index} className="flex items-center gap-2">
                     <input
                       type="text"
-                      placeholder={`Nama Petugas ${index + 1}`}
+                      placeholder={`Petugas ${index + 1}`}
                       value={petugas}
                       onChange={(e) => handlePetugasChange(index, e)}
                       className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border"
@@ -762,7 +824,7 @@ export default function FormPengoperasian() {
                   <button
                     type="button"
                     onClick={addPetugas}
-                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold mt-3"
+                    className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-semibold mt-2"
                   >
                     <HiOutlinePlus className="w-4 h-4" />
                     Tambah Petugas
@@ -770,47 +832,24 @@ export default function FormPengoperasian() {
                 )}
               </div>
               <div>
-                <InputField 
-                  label="Pelaksana" 
-                  name="pelaksanaPetugas" 
-                  value={formData.pelaksanaPetugas} 
-                  onChange={handleInputChange}
-                  placeholder="Nama pelaksana pekerjaan"
-                />
+                <InputField label="Pelaksana" name="pelaksanaPetugas" value={formData.pelaksanaPetugas} onChange={handleInputChange} />
               </div>
             </div>
             <div className="mt-6">
-              <h3 className="font-semibold text-gray-700 mb-4">Lampiran Foto/Dokumen</h3>
-              <PhotoUploadComponent files={uploadedFiles} setFiles={setUploadedFiles} />
+              <h3 className="font-semibold mb-4">Lampiran Foto</h3>
+              <PhotoUploadComponent files={uploadedFiles} setFiles={setUploadedFiles} existingPhotos={existingPhotos} />
             </div>
           </Section>
 
-          <div className="flex justify-end gap-4 mt-6 mb-8">
-            <button 
-              type="button"
-              onClick={() => navigate('/pengoperasian-jaringan')}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-8 rounded-lg shadow-md transition duration-300"
-            >
-              Batal
-            </button>
+          <div className="flex justify-end mt-6">
             <button 
               type="submit"
               disabled={loading}
               className={`${
                 loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-              } text-white font-bold py-3 px-8 rounded-lg shadow-md transition duration-300 flex items-center gap-2`}
+              } text-white font-bold py-2 px-8 rounded-lg shadow-md transition duration-300`}
             >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Menyimpan...
-                </>
-              ) : (
-                'Simpan Data'
-              )}
+              {loading ? 'Menyimpan...' : 'Simpan Perubahan'}
             </button>
           </div>
         </form>
